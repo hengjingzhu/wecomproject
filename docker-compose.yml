@@ -6,7 +6,7 @@ services:
     image: DOCKER_IMAGE
     #command: python manage.py runserver 0.0.0.0:8000
     # 先收集静态文件夹，--noinput 是直接覆盖原有的文件.然后uwsgi 启动
-    command: bash -c "python manage.py collectstatic --noinput && uwsgi --ini uwsgi.ini & nohup celery -A apimessage.celery_tasks worker -P gevent -c 10 > celery.log 2>&1 &"
+    command: bash -c "python manage.py collectstatic --noinput && uwsgi --ini uwsgi.ini &"
     #command: uwsgi --http :8000 --module myobject.wsgi --py-autoreload=1
     volumes:
       # 把静态文件夹目录挂载出来,方便 nginx 转发
