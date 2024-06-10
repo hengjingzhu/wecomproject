@@ -17,6 +17,10 @@ import uuid
 
 import os
 
+
+# os.environ.setdefault('DJANGO_SETTINGS_MODULE','wecom.local_settings')   #告诉celery 把django的指定项目融合,所以用的这个项目的settings
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','wecom.production_settings')
+
 # 设置环境变量来确保不使用代理
 os.environ['NO_PROXY'] = settings.AWS_S3_ENDPOINT_URL
 os.environ['no_proxy'] = settings.AWS_S3_ENDPOINT_URL
