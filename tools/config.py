@@ -2,8 +2,8 @@ import os
 import django
 print(os.getcwd())
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wecom.local_settings')
-# os.environ.setdefault('DJANGO_SETTINGS_MODULE','wecom.production_settings')
+# os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wecom.local_settings')
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','wecom.production_settings')
 django.setup()
 
 

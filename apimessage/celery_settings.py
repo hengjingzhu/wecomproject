@@ -3,8 +3,8 @@ from django.conf import settings
 import os
 from tools.config import REDIS_EXTERNAL_HOST,REDIS_PASSWORD,REDIS_PORT
 
-os.environ.setdefault('DJANGO_SETTINGS_MODULE','wecom.local_settings')   #告诉celery 把django的指定项目融合,所以用的这个项目的settings
-# os.environ.setdefault('DJANGO_SETTINGS_MODULE','wecom.production_settings')
+# os.environ.setdefault('DJANGO_SETTINGS_MODULE','wecom.local_settings')   #告诉celery 把django的指定项目融合,所以用的这个项目的settings
+os.environ.setdefault('DJANGO_SETTINGS_MODULE','wecom.production_settings')
 
 # 初始化celery对象
 app = Celery('gptresponse')
