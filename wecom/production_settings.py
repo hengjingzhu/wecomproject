@@ -160,7 +160,6 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # AUTH_USER_MODEL = 'apimessage.UserInfo'
 
 STATICFILES_DIRS = [
-    				BASE_DIR / "static",
    					#应用名下面的static文件夹
     				'apimessage/static/',
     				]
