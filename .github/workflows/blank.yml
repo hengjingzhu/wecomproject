@@ -1,32 +1,123 @@
-# This is a basic workflow to help you get started with Actions
 
-name: CI
+name: Deploy to Alibaba Cloud ECS
 
-# Controls when the workflow will run
 on:
-  # Triggers the workflow on push or pull request events but only for the "main" branch
+  # 监控的 github 分支
   push:
-    branches: [ "main" ]
+    branches: [ main ]
   pull_request:
-    branches: [ "main" ]
+    branches: [ main ]
 
-  # Allows you to run this workflow manually from the Actions tab
-  workflow_dispatch:
+env:
+  IMAGE_NAME: davidzhu/django-wecom  # 镜像名，阿里云的镜像仓库命名规则
+  IMAGE_TAG: v0.1.0                       # 镜像的版本号，   
+  REGION: cn-shanghai                     # 阿里云镜像地址   
+  ACCESS_KEY_ID: ${{ secrets.AWS_EC2_ACCESS_KEY }}      # 登陆ecs 服务器 id ，可以是 root,放在 secrets中
+  ACCESS_KEY_SECRET: ${{ secrets.AWS_EC2_SECRET_KEY }}   # 登陆 ecs 服务器 私钥，放在 secrets 中
+  ECS_CLUSTER_ID:  ${{ secrets.AWS_EC2_EXTERNAL_HOST }}                       # 服务器地址
 
-# A workflow run is made up of one or more jobs that can run sequentially or in parallel
 jobs:
-  # This workflow contains a single job called "build"
-  build:
-    # The type of runner that the job will run on
+  deploy:
     runs-on: ubuntu-latest
-
-    # Steps represent a sequence of tasks that will be executed as part of the job
     steps:
-      # Checks-out your repository under $GITHUB_WORKSPACE, so your job can access it
-      - uses: actions/checkout@v4
+    
+    # Checkout the repository
+    - name: Checkout
+      uses: actions/checkout@v2
+      
+    # Set up Python environment
+    - name: Set up Python
+      uses: actions/setup-python@v2
+      with:
+        python-version: '3.9'
+        
+    # 登陆 阿里云镜像仓库地址
+    - name: Configure Docker
+      uses: docker/login-action@v1
+      with:
+        registry: registry.${{ env.REGION }}.aliyuncs.com
+        username: ${{ secrets.ALIYUN_CONTAINER_REGISTRY_USERNAME }}
+        password: ${{ secrets.ALIYUN_CONTAINER_REGISTRY_PASSWORD }}
 
-      # Runs a single command using the runners shell
-      - name: Run a one-line script
-        run: echo Hello, world!
+    #- name: Install Python dependencies
+    #  run: |
+    #    sudo apt-get update
+    #    sudo apt-get -y install python3-pip
+    #    pip3 install -r requirements.txt
+    
+    # 更具代码仓库的Dockerfile创建镜像并且 推送到服务器 
+    - name: Build Docker image
+      uses: docker/build-push-action@v2
+      with:
+        context: .
+        file: Dockerfile
+        push: true
+        tags: registry.${{ env.REGION }}.aliyuncs.com/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+        build-args: |
+            ANTHROPIC_SECRETKEY=${{ secrets.ANTHROPIC_SECRETKEY }}
+            DJANGO_SECRET_KEY=${{ secrets.DJANGO_SECRET_KEY }}
+            POSTGRESQL_INTERNAL_HOST=${{ secrets.POSTGRESQL_INTERNAL_HOST }}
+            POSTGRESQL_INTERNAL_PORT=${{ secrets.POSTGRESQL_INTERNAL_PORT }}
+            POSTGRESQL_INTERNAL_PASSWORD=${{ secrets.POSTGRESQL_INTERNAL_PASSWORD }}
+            POSTGRESQL_INTERNAL_USERNAME=${{ secrets.POSTGRESQL_INTERNAL_USERNAME }}
+            POSTGRESQL_INTERNAL_DBNAME=${{ secrets.POSTGRESQL_INTERNAL_DBNAME }}
+            REDIS_INTERNAL_HOST=${{ secrets.REDIS_INTERNAL_HOST }}
+            REDIS_INTERNAL_PASSWORD=${{ secrets.REDIS_INTERNAL_PASSWORD }}
+            OPENAI_ORG_ID=${{ secrets.OPENAI_ORG_ID }}
+            OPENAI_SECRETKEY=${{ secrets.OPENAI_SECRETKEY }}
+            AWS_EC2_EXTERNAL_HOST=${{ secrets.AWS_EC2_EXTERNAL_HOST }}
+            AWS_EC2_INERNAL_HOST=${{ secrets.AWS_EC2_INERNAL_HOST }}
+            AWS_EC2_ACCESS_KEY=${{ secrets.AWS_EC2_ACCESS_KEY }}
+            AWS_EC2_SECRET_KEY=${{ secrets.AWS_EC2_SECRET_KEY }}
+            
+            
 
-     
+      env:
+        DOCKER_USERNAME: ${{ secrets.ALIYUN_CONTAINER_REGISTRY_USERNAME }}
+        DOCKER_PASSWORD: ${{ secrets.ALIYUN_CONTAINER_REGISTRY_PASSWORD }}
+      
+    
+    # 远程 ssh 连接 阿里云ecs 服务器并且部署
+    - name: ssh deploy
+      # You may pin to the exact commit or the version.
+      # uses: easingthemes/ssh-deploy@3884c8554ff45c0fd37d3f12a76288d06ce7a2ff
+      uses: easingthemes/ssh-deploy@v4.1.8
+      with:
+        # Private key part of an SSH key pair,ssh 连接密钥
+        SSH_PRIVATE_KEY: ${{ env.ACCESS_KEY_SECRET }}
+        # Remote host
+        REMOTE_HOST: ${{ env.ECS_CLUSTER_ID }}
+        # Remote user
+        REMOTE_USER: ${{ env.ACCESS_KEY_ID }}
+        # Source directory, path relative to `$GITHUB_WORKSPACE` root, eg: `dist/`
+        # SOURCE: "./dist" # optional, default is 
+        
+        # Target directory,把当前的项目代码目标拷贝到Target目录 /opt/DjangoChatGPTAPI
+        TARGET:  "/opt/DjangoWeCOM"
+      
+       
+       
+        #  登陆 阿里云镜像仓库,
+        # 拉取刚刚推送的镜像，
+        # 把 /opt/DjangoChatGPTAPI/docker-compose.yaml 文件中的 image 镜像修改成刚刚拉取的镜像
+        # 把之前的使用的镜像服务停掉删除
+        # 删除标签为 <none> 的镜像
+        # 删除原来的挂载的 static的文件夹，重新建立 rm -f /opt/djangotest2/djangostatic/* mkdir /opt/djangotest2/djangostatic
+        # 使用 /opt/djangotest2/docker-compose.yaml 启动新的镜像服务
+        # 使用 /opt/djangotest2/docker-compose.yaml 启动新的镜像服务
+        # 注意新版本中 使用 docker compose 代替了 docker-compose
+        SCRIPT_AFTER: |
+          
+
+          docker login --username=${{ secrets.ALIYUN_CONTAINER_REGISTRY_USERNAME }} registry.${{ env.REGION }}.aliyuncs.com --password=${{ secrets.ALIYUN_CONTAINER_REGISTRY_PASSWORD }}
+          
+          docker pull registry.${{ env.REGION }}.aliyuncs.com/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}
+          
+          sed -i "s|image:.*|image: registry.${{ env.REGION }}.aliyuncs.com/${{ env.IMAGE_NAME }}:${{ env.IMAGE_TAG }}|" /opt/DjangoWeCOM/docker-compose.yml
+          
+          docker compose -f /opt/DjangoWeCOM/docker-compose.yml down
+          
+          
+          docker image prune -f --filter "dangling=true"
+          rm -f /opt/DjangoWeCOM/djangostatic/*
+          docker compose -f /opt/DjangoWeCOM/docker-compose.yml up -d

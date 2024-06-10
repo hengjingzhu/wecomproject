@@ -1,0 +1,27 @@
+version: "3.9"
+
+services:
+  djangoproject1:
+
+    image: DOCKER_IMAGE
+    #command: python manage.py runserver 0.0.0.0:8000
+    # 先收集静态文件夹，--noinput 是直接覆盖原有的文件.然后uwsgi 启动
+    command: bash -c "python manage.py collectstatic --noinput && uwsgi --ini uwsgi.ini"
+    #command: uwsgi --http :8000 --module myobject.wsgi --py-autoreload=1
+    volumes:
+      # 把静态文件夹目录挂载出来,方便 nginx 转发
+      - /opt/DjangoWeCOM/djangostatic:/djangostatic
+
+    deploy:
+      replicas : 3
+        
+    ports:
+      - "7000-7002:8000"
+    restart: always
+
+     # 限制容器日志的大小
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
