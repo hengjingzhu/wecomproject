@@ -104,4 +104,6 @@ RUN ln -sf /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
 # 安装 requirements.txt 模块
 RUN python -m pip install --upgrade pip
 RUN pip install --upgrade pip setuptools
+RUN apt update
+RUN apt install ffmpeg -y
 RUN pip install -r requirements.txt
