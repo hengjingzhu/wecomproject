@@ -225,6 +225,7 @@ class RECEIVE_MESSAGE(View):
                                                 chat_bot_config=chat_bot_config,
                                                 event=event
                                                )
+                
                 return HttpResponse('ok', content_type="application/xml")
             
             # 如果发送的视频

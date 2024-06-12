@@ -222,7 +222,7 @@ def async_save_voice_to_minio(msg_type,
                         agent_id,
                         create_time,
                         chat_bot_config,
-                        event):
+                        event='general'):
     
     
       
