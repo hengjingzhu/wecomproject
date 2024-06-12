@@ -113,64 +113,6 @@ def async_save_video_to_minio(
     print('celery 执行结果',result)
     return result
 
-# 保存音频到minio,并且使用 whisper转为文字
-@app.task
-def async_save_voice_to_minio(
-                        from_user_name,
-                        media_id,
-                        agent_id,
-                        create_time):
-    
-    
-      
-    """下载音频文件,把音频转为mp3格式
-    """
-    response = WECOMM(agentId=agent_id).Get_media_data(media_id=media_id)
-    
-    mp3_stream = convert_amr_to_mp3(response)
-
-
-    """保存音频到minio
-    """  
-    # 创建一个新的 MyImageModel 实例
-    media_instance = MyStaticModel()
-    new_media_name = from_user_name+'_'+create_time
-    
-    media_instance.username = from_user_name
-    media_instance.agent_id_id = agent_id
-    
-    # 使用 Django 的 File 将内容保存到 voice 的 ImageField
-    media_instance.voice.save(f'{from_user_name}/{new_media_name}.mp3', File(mp3_stream), save=True)
-    
-    
-    print(media_instance.voice.url)
-    """使用 whisper转为文字
-        voice_words返回的是听到的字符串
-    """
-    # 上传的文件格式,这里需要满足如下条件 a tuple of (filename, contents, media type).
-    uploaded_audio_file = (media_instance.voice.name,mp3_stream.getvalue(),'mp3')
-    voice_words = OpenAIModel(open_ai_model_name="whisper-1").stt_whisper(audio_file=uploaded_audio_file)
-    
-    
-    """回复信息给到用户
-    """
-    response_content = voice_words
-    # print('保存的图片地址为',media_instance.image)
-    # 组织发送反馈消息的data
-    data={
-            "touser" : from_user_name,
-            "msgtype" : 'text',
-            "agentid" : agent_id,
-            "text" : {
-                "content" : response_content
-            },
-        }
-    # 把反馈消息推送到用户的企业微信
-    result = WECOMM(agentId=agent_id).send_message(data=data)
-    print('celery 执行结果',result)
-    return result
-
-
 
 # gpt 回复
 @app.task
@@ -193,7 +135,7 @@ def async_send_messages_through_gpt(message_type,
     GPT_Max_Token_Response = chat_bot_config['max_token_response']
     
     user_message = GPT_User_Prompt+received_message
-    
+    # print('user_message',user_message)
     # 在数据库中查找当天有没有聊天记录,历史记录是一个人一天来记录的，如果当天有历史记录就取出来，如果没有就新增一条
     now = datetime.now()
     print('现在时间是',now,type(now))
@@ -269,3 +211,74 @@ def async_send_messages_through_gpt(message_type,
     history_message_obj.save()
 
     return result # 把结果保存到backend_url中
+
+
+
+# 保存音频到minio,并且使用 whisper转为文字
+@app.task
+def async_save_voice_to_minio(msg_type,
+                        from_user_name,
+                        media_id,
+                        agent_id,
+                        create_time,
+                        chat_bot_config,
+                        event):
+    
+    
+      
+    """下载音频文件,把音频转为mp3格式
+    """
+    response = WECOMM(agentId=agent_id).Get_voice_data(media_id=media_id)
+    
+    mp3_stream = convert_amr_to_mp3(response)
+
+
+    """保存音频到minio
+    """  
+    # 创建一个新的 MyImageModel 实例
+    media_instance = MyStaticModel()
+    new_media_name = from_user_name+'_'+create_time
+    
+    media_instance.username = from_user_name
+    media_instance.agent_id_id = agent_id
+    
+    # 使用 Django 的 File 将内容保存到 voice 的 ImageField
+    media_instance.voice.save(f'{from_user_name}/{new_media_name}.mp3', File(mp3_stream), save=True)
+    
+    
+    print(media_instance.voice.url)
+    """使用 whisper转为文字
+        voice_words返回的是听到的字符串
+    """
+    # 上传的文件格式,这里需要满足如下条件 a tuple of (filename, contents, media type).
+    uploaded_audio_file = (media_instance.voice.name,mp3_stream.getvalue(),'mp3')
+    voice_words = OpenAIModel(open_ai_model_name="whisper-1",user=from_user_name,
+                            user_query = 'None',
+                            agent_id = agent_id,).stt_whisper(audio_file=uploaded_audio_file)
+    
+    
+    """把音频消息回复给到 gpt 生成回复答案。并且回复消息给到客户
+    """
+    # 组织发送反馈消息的data
+    result = async_send_messages_through_gpt(message_type=msg_type,
+                                    received_message=voice_words,
+                                    from_user_name=from_user_name,
+                                    agent_id=agent_id,
+                                    chat_bot_config=chat_bot_config,
+                                    event=event
+                                    )
+    """回复信息给到用户
+    """
+    # response_content = voice_words
+    # data={
+    #         "touser" : from_user_name,
+    #         "msgtype" : 'text',
+    #         "agentid" : agent_id,
+    #         "text" : {
+    #             "content" : response_content
+    #         },
+    #     }
+    # # 把反馈消息推送到用户的企业微信
+    # result = WECOMM(agentId=agent_id).send_message(data=data)
+    print('celery 执行结果',result)
+    return result

@@ -1,7 +1,7 @@
 version: "3.9"
 
 services:
-  djangoproject1:
+  wecomdjango:
 
     image: DOCKER_IMAGE
     #command: python manage.py runserver 0.0.0.0:8000
@@ -17,6 +17,19 @@ services:
         
     ports:
       - "7000-7002:8000"
+    restart: always
+
+     # 限制容器日志的大小
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "100m"
+        max-file: "3"
+
+  # 启动celery
+  wecomcelery:
+    image: DOCKER_IMAGE
+    command: nohup celery -A apimessage.celery_tasks worker -P gevent -c 100 > celery.log 2>&1 &
     restart: always
 
      # 限制容器日志的大小

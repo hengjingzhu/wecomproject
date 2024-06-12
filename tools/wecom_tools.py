@@ -4,7 +4,7 @@
 
 # os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'wecom.settings')
 # django.setup()
-
+from tenacity import retry, wait_exponential, stop_after_attempt, retry_if_exception_type
 from tools.config import *
 import time
 import traceback
@@ -14,6 +14,8 @@ import inspect
 from io import BytesIO
 from PIL import Image
 import json
+from urllib.parse import urlparse
+
 
 corpid = CORPID
 # corpsectet = CORPSECRET
@@ -170,7 +172,40 @@ class WECOMM():
             original_image_bytes = response.content
             resized_image_bytes = self.resize_image(original_image_bytes)
             return resized_image_bytes
+        
+    def Get_voice_data(self,media_id):
+        access_token = self.Get_access_token()
+        Get_media_data_url = f'https://qyapi.weixin.qq.com/cgi-bin/media/get?access_token={access_token}&media_id={media_id}'
+        response = requests.get(url=Get_media_data_url)
+        response.raise_for_status()  # 确保请求成功
+        if response.status_code == 200:
+            print('media请求结果成功,voice data')
+            return response.content
     
+    # 上传临时素材给到wecomm,得到一个 media ID,type 分别有图片（image）、语音（voice）、视频（video），普通文件（file)
+    # 最多重试5次 # 指数退避策略，初始等待1秒，最大等待10秒 # 仅在请求错误时重试
+    @retry(stop=stop_after_attempt(5), wait=wait_exponential(multiplier=1, max=10))
+    def Upload_media_file(self,media_url,type='image'):
+        access_token = self.Get_access_token()
+        Upload_media_file_url = f'https://qyapi.weixin.qq.com/cgi-bin/media/upload?access_token={access_token}&type={type}'
+
+        media_response = requests.get(media_url)
+        if media_response.status_code == 200:
+            img_data = BytesIO(media_response.content)
+        filename = os.path.basename(urlparse(media_url).path)
+        files = {
+            "media": (filename, img_data, "application/octet-stream")
+        }
+        response = requests.post(Upload_media_file_url, files=files)
+    
+        if response.status_code == 200:
+            result = response.json()
+            try: 
+                media_id = result['media_id']
+                return media_id
+            except Exception as e:
+                return f'upload media faile +{e}'
+                
     # 发信信息给到指定用户    
     def send_message(self,data={
                         "touser" : 'zhuhengjing',
@@ -192,7 +227,16 @@ class WECOMM():
         return response.text
 
 if __name__ =='__main__':
-    
+    # from tools.wecom_tools import WECOMM
     # result = WECOMM().send_message()
     # print(result,type(result))
-    WECOMM(agentId=100002).Get_media_data(media_id='1bzUHZd-nlQ086gWEtUHoHA6KJPdQ6RQjPXkyMv-frTqb9z0mRxSEGdWzgoiWAXqV')
+    # WECOMM(agentId=100002).Get_media_data(media_id='1bzUHZd-nlQ086gWEtUHoHA6KJPdQ6RQjPXkyMv-frTqb9z0mRxSEGdWzgoiWAXqV')
+    WECOMM(agentId='1000002').Upload_media_file(media_url='http://106.14.9.212:9100/wecom/images/ZhuHengJing/ZhuHengJing_1713294652.jpeg',type='image')
+    WECOMM(agentId='1000002').send_message(data={
+                        "touser" : 'zhuhengjing',
+                        "msgtype" : "image",
+                        "agentid" : 1000002,
+                        "image" : {
+                                "media_id" : "30i4vSu-cUtd_pV3_ROmjKUblbxkMktxB9igyWri0-exkFpu9DFVLVa4WnpnxDkjo"
+                        },
+                    })

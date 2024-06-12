@@ -207,12 +207,23 @@ class RECEIVE_MESSAGE(View):
                 # print('image_url',image_url)
                 print('voice的media_id',media_id)
                 
+                # 先缓存里查找bot配置信息,如果没有就去数据库里查找
+                # {'agent_id': 1000002, 'agent_name': 'chatbot2', 'llm_model_name': 'gpt-3.5-turbo', 'system_prompt': 'you are a helpful ai', 'user_prompt': '', 'temperature': Decimal('0'), 'max_token_response': 5000, 'is_active': True}
+                chat_bot_config = cache.get(agent_id)
+                print('chat_bot_config in redis',chat_bot_config,type(chat_bot_config))
+                if not chat_bot_config:
+                    chat_bot_config_obj = BOT_LLM_CONFIG.objects.get(agent_id=agent_id)
+                    chat_bot_config = model_to_dict(chat_bot_config_obj)
+                    print('chat_bot_config in SQL',chat_bot_config,type(chat_bot_config))
+                
                 # 保存视频到 minio, celery 来完成
-                async_save_voice_to_minio.delay(
+                async_save_voice_to_minio.delay(msg_type = msg_type,
                                                 from_user_name=from_user_name,
                                                 agent_id=agent_id,
                                                 create_time=create_time,
                                                 media_id=media_id,
+                                                chat_bot_config=chat_bot_config,
+                                                event=event
                                                )
                 return HttpResponse('ok', content_type="application/xml")
             

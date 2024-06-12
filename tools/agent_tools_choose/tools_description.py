@@ -15,7 +15,7 @@ agent_tools = [
             "type": "function",
             "function": {
                 "name": "get_media_file_from_DB",
-                "description": "This function is triggered only when the user asks about the media query tasks. It retrieves media files (only pictures, videos) from the database.",
+                "description": "This function is triggered only when the user asks about the pictures or videos query tasks. It retrieves media files (only pictures, videos) from the database.",
                 "parameters": {
                     "type": "object",
                     "properties": {

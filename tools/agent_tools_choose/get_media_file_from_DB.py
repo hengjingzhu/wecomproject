@@ -63,10 +63,10 @@ def get_media_file_from_DB(time_delta_string,media_type,number_of_files,user,use
                     A: {"exec_code":"MyStaticModel.objects.filter(username=user,agent_id=agent_id,created_time__gte=thirty_minutes_ago).exclude(image='').order_by('-created_time')[:1]","response_content:"GPT response"}
 
                     Q: 这二张图片
-                    A: {"exec_code":"MyStaticModel.objects.filter(username=user,agent_id=agent_id,created_time__gte=thirty_minutes_ago).exclude(image='').order_by('-created_time')[:2]","response_content:"GPT response"}
+                    A: {"exec_code":"MyStaticModel.objects.filter(username=user,agent_id=agent_id,created_time__gte=thirty_minutes_ago).exclude(image='').order_by('created_time')[-2:]","response_content:"GPT response"}
 
                     Q: 刚刚上传的两张图片
-                    A: {"exec_code":"MyStaticModel.objects.filter(username=user,agent_id=agent_id,created_time__gte=thirty_minutes_ago).exclude(image='').order_by('-created_time')[:2]","response_content:"GPT response"}
+                    A: {"exec_code":"MyStaticModel.objects.filter(username=user,agent_id=agent_id,created_time__gte=thirty_minutes_ago).exclude(image='').order_by('created_time')[-2:]","response_content:"GPT response"}
                    '''
         userPrompt = f'''
                         Task 1:
@@ -190,8 +190,10 @@ def get_media_file_from_DB(time_delta_string,media_type,number_of_files,user,use
     print('final_result',search_image_query)
     
     # 如果final_result 有值就返回
+    """search_image_query,如果search_image_query 大于9张图的话就取最后九张图。to do list...
+    """
     final_result = []
-    if search_image_query:
+    if search_image_query and len(search_image_query)<=9:
         print('search_image_query',search_image_query)
         for obj in search_image_query:
             
@@ -216,6 +218,29 @@ def get_media_file_from_DB(time_delta_string,media_type,number_of_files,user,use
         #     {'media_type':f'{media_type}','image_url':'https://media.unexus.cn:9000/wecom/images/ZhuHengJing/ZhuHengJing_1713383264.jpeg'},
         #     {'media_type':f'{media_type}','image_url':'https://media.unexus.cn:9000//wecom/images/ZhuHengJing/ZhuHengJing_1713294652.jpeg'}])
 
+        return f"These are the all image files that user required: {final_result}"
+    
+    # 如果超出9张就自动截取最后九张
+    elif search_image_query and len(search_image_query)>9:
+        for obj in search_image_query[len(search_image_query)-9:len(search_image_query)]:
+            
+            final_result.append(
+                {'media_type':f'{media_type}','image_url':obj.image.url.split('?')[0]}
+                )
+        
+        data={
+                "touser" : user,
+                "msgtype" : 'text',
+                "agentid" : agent_id,
+                "text" : {
+                    "content" : f"我一次性只能处理9张图片哦, 我会自动截后9张图片来完成以下任务🛠️🛠️🛠️"
+                },
+        }
+        WECOMM(agentId=agent_id).send_message(data=data)
+        
+        
+        final_result = json.dumps(final_result)
+        print(final_result)
         return f"These are the all image files that user required: {final_result}"
     else:
         return f"you have no image files uploaded during this time range"

@@ -13,7 +13,6 @@ def describe_the_picture_by_urls(media_files_list,user,user_query,agent_id,GPT_r
     
     if media_files_list:
     
-    
         data={
                     "touser" : user,
                     "msgtype" : 'text',
